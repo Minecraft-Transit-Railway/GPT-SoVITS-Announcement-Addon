@@ -23,6 +23,10 @@ java {
 	}
 }
 
+tasks.withType(Jar) {
+	zip64 = true
+}
+
 tasks.register("setupFiles") {
 	setup.downloadPython()
 }
