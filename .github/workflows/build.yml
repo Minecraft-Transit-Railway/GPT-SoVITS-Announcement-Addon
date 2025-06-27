@@ -16,12 +16,10 @@ jobs:
           distribution: 'zulu'
       - name: Make gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: Setup files
-        run: ./gradlew setupFiles
       - name: Build
         run: ./gradlew build
       - name: Capture release artifact
         uses: actions/upload-artifact@main
         with:
           name: Artifact
-          path: build/libs/
+          path: build/libs/GPT-SoVITS-Announcement-Addon.jar

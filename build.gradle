@@ -1,12 +1,11 @@
-import org.mtr.announcement.Setup
-
 plugins {
+	id "org.springframework.boot" version "+"
+	id "io.spring.dependency-management" version "+"
 	id "java"
 }
 
 group "org.mtr.announcement"
 version rootProject.properties.version
-final Setup setup = new Setup(project)
 
 repositories {
 	mavenCentral()
@@ -15,18 +14,15 @@ repositories {
 dependencies {
 	implementation "com.google.code.gson:gson:+"
 	implementation "it.unimi.dsi:fastutil:+"
+	implementation "commons-io:commons-io:+"
+	implementation "org.apache.httpcomponents:httpmime:+"
+	implementation "org.springframework.boot:spring-boot-starter-web:+"
+	compileOnly "org.projectlombok:lombok"
+	annotationProcessor "org.projectlombok:lombok"
 }
 
 java {
 	toolchain {
 		languageVersion.set(JavaLanguageVersion.of(17))
 	}
-}
-
-tasks.withType(Jar) {
-	zip64 = true
-}
-
-tasks.register("setupFiles") {
-	setup.downloadPython()
 }
