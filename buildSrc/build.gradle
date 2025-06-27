@@ -1,0 +1,15 @@
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation "com.google.code.gson:gson:+"
+	implementation "commons-io:commons-io:+"
+	implementation "org.apache.httpcomponents:httpmime:+"
+}
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(17))
+	}
+}

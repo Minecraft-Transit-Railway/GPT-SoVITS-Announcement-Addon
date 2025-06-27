@@ -1,0 +1,28 @@
+import org.mtr.announcement.Setup
+
+plugins {
+	id "java"
+}
+
+group "org.mtr.announcement"
+version rootProject.properties.version
+final Setup setup = new Setup(project)
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation "com.google.code.gson:gson:+"
+	implementation "it.unimi.dsi:fastutil:+"
+}
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(17))
+	}
+}
+
+tasks.register("setupFiles") {
+	setup.downloadPython()
+}

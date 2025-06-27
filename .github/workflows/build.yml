@@ -1,0 +1,27 @@
+name: Build
+on: [ pull_request, push, workflow_dispatch ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+      - name: Validate gradle wrapper
+        uses: gradle/wrapper-validation-action@main
+      - name: Setup JDK 17
+        uses: actions/setup-java@main
+        with:
+          java-version: 17
+          distribution: 'zulu'
+      - name: Make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: Setup files
+        run: ./gradlew setupFiles
+      - name: Build
+        run: ./gradlew build
+      - name: Capture release artifact
+        uses: actions/upload-artifact@main
+        with:
+          name: Artifact
+          path: build/libs/

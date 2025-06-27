@@ -1,0 +1,12 @@
+pluginManagement {
+	repositories {
+		mavenCentral()
+		gradlePluginPortal()
+	}
+}
+
+plugins {
+	id "org.gradle.toolchains.foojay-resolver-convention" version "+"
+}
+
+rootProject.name = "GPT-SoVITS-Announcement-Addon"
