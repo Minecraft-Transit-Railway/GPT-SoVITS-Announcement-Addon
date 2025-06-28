@@ -16,7 +16,8 @@ public final class RuntimeService {
 
 	@Nullable
 	private Process process;
-	private final int port = findFreePort();
+
+	public final int port = findFreePort();
 	private final ProcessBuilder processBuilder = new ProcessBuilder(Application.SOURCE_DIRECTORY.resolve("runtime/python").toAbsolutePath().toString(), "api_v2.py", "-p", String.valueOf(port));
 
 	public boolean start() {
@@ -28,6 +29,7 @@ public final class RuntimeService {
 		try {
 			processBuilder.directory(Application.SOURCE_DIRECTORY.toFile());
 			processBuilder.inheritIO();
+			processBuilder.environment().put("PYTHONUTF8", "1");
 			log.info("Starting runtime with command [{}]", String.join(" ", processBuilder.command()));
 			process = processBuilder.start();
 			return true;
@@ -49,14 +51,14 @@ public final class RuntimeService {
 					}
 				}
 				return 0;
-			}, 1) != null;
+			}, Integer.MAX_VALUE) != null;
 		} else {
 			log.info("No need to stop; runtime not running");
 			return false;
 		}
 	}
 
-	private boolean isRunning() {
+	public boolean isRunning() {
 		return process != null && process.isAlive();
 	}
 

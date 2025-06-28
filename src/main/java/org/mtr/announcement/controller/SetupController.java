@@ -39,7 +39,7 @@ public final class SetupController {
 	}
 
 	@GetMapping("/version")
-	public String getVersion() {
+	public String version() {
 		return setupService.getVersion();
 	}
 }

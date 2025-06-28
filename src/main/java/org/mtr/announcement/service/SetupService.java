@@ -1,11 +1,11 @@
 package org.mtr.announcement.service;
 
-import com.google.gson.JsonElement;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.mtr.announcement.Application;
 import org.mtr.announcement.tool.Utilities;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.InputStream;
@@ -21,10 +21,16 @@ import java.util.regex.Pattern;
 @Service
 public final class SetupService {
 
+	private final RestTemplate restTemplate;
+
 	public static final Path EXTRACT_DIRECTORY = Application.APPLICATION_PATH.resolve("extract");
 	private static final Path ZIP_FILE = Application.APPLICATION_PATH.resolve(Application.NAMESPACE + ".7z");
 	private static final Path VERSION_FILE = Application.APPLICATION_PATH.resolve("version.txt");
 	private static final String[] EXTRACT_LOCATIONS = {"api_v2.py", "GPT_SoVITS/*", "runtime/*", "tools/*"};
+
+	public SetupService(RestTemplate restTemplate) {
+		this.restTemplate = restTemplate;
+	}
 
 	public boolean prepare() {
 		try {
@@ -42,13 +48,13 @@ public final class SetupService {
 	public boolean download(int retries) {
 		try {
 			log.info("Finding latest release from GitHub");
-			final JsonElement releasesElement = Utilities.getJson("https://api.github.com/repos/RVC-Boss/GPT-SoVITS/releases/latest", retries);
-			if (releasesElement == null) {
+			final GitHubLatestRelease gitHubLatestRelease = Utilities.runWithRetry(() -> restTemplate.getForObject("https://api.github.com/repos/RVC-Boss/GPT-SoVITS/releases/latest", GitHubLatestRelease.class), retries);
+			if (gitHubLatestRelease == null) {
 				return false;
 			}
 
-			final Matcher matcher = Pattern.compile("https://huggingface\\.co/lj1995/GPT-SoVITS-windows-package/resolve/main/GPT-SoVITS-[\\w-]+\\.7z\\?download=true").matcher(releasesElement.getAsJsonObject().get("body").getAsString());
-			FileUtils.write(VERSION_FILE.toFile(), releasesElement.getAsJsonObject().get("name").getAsString(), StandardCharsets.UTF_8);
+			final Matcher matcher = Pattern.compile("https://huggingface\\.co/lj1995/GPT-SoVITS-windows-package/resolve/main/GPT-SoVITS-[\\w-]+\\.7z\\?download=true").matcher(gitHubLatestRelease.body);
+			FileUtils.write(VERSION_FILE.toFile(), gitHubLatestRelease.name, StandardCharsets.UTF_8);
 			if (!matcher.find()) {
 				log.error("Failed to find download URL");
 				return false;
@@ -91,7 +97,7 @@ public final class SetupService {
 					processBuilder.inheritIO();
 					final int exitCode = processBuilder.start().waitFor();
 					if (exitCode != 0) {
-						throw new Exception(String.format("[%s] extraction failed for command [%s] with exit code %s", extractLocation, String.join(" ", processBuilder.command()), exitCode));
+						throw new Exception(String.format("[%s] extraction failed for command [%s] with exit runtimeCode %s", extractLocation, String.join(" ", processBuilder.command()), exitCode));
 					}
 					return 0;
 				}, retries) == null) {
@@ -134,5 +140,8 @@ public final class SetupService {
 		} catch (Exception e) {
 			return "";
 		}
+	}
+
+	private record GitHubLatestRelease(String name, String body) {
 	}
 }
