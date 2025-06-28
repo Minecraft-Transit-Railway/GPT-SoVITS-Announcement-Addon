@@ -1,23 +1,23 @@
-package org.mtr.announcement.runtime;
+package org.mtr.announcement.service;
 
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
-import org.mtr.announcement.controller.SetupController;
+import org.mtr.announcement.Application;
 import org.mtr.announcement.tool.Utilities;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
-@Component
-public final class RuntimeManager {
+@Service
+public final class RuntimeService {
 
 	@Nullable
 	private Process process;
 	private final int port = findFreePort();
-	private final ProcessBuilder processBuilder = new ProcessBuilder(SetupController.SOURCE_DIRECTORY.resolve("runtime/python").toAbsolutePath().toString(), "api_v2.py", "-p", String.valueOf(port));
+	private final ProcessBuilder processBuilder = new ProcessBuilder(Application.SOURCE_DIRECTORY.resolve("runtime/python").toAbsolutePath().toString(), "api_v2.py", "-p", String.valueOf(port));
 
 	public boolean start() {
 		if (isRunning()) {
@@ -26,7 +26,7 @@ public final class RuntimeManager {
 		}
 
 		try {
-			processBuilder.directory(SetupController.SOURCE_DIRECTORY.toFile());
+			processBuilder.directory(Application.SOURCE_DIRECTORY.toFile());
 			processBuilder.inheritIO();
 			log.info("Starting runtime with command [{}]", String.join(" ", processBuilder.command()));
 			process = processBuilder.start();
@@ -49,9 +49,9 @@ public final class RuntimeManager {
 					}
 				}
 				return 0;
-			}) != null;
+			}, 1) != null;
 		} else {
-			log.warn("Cannot stop; runtime not running");
+			log.info("No need to stop; runtime not running");
 			return false;
 		}
 	}
@@ -62,7 +62,6 @@ public final class RuntimeManager {
 
 	private static int findFreePort() {
 		for (int i = 9880; i <= 65535; i++) {
-			// Start with port 80, then search from 1025 onwards
 			try (final ServerSocket serverSocket = new ServerSocket(i)) {
 				final int port = serverSocket.getLocalPort();
 				log.info("Found available port: {}", port);

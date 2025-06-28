@@ -1,7 +1,7 @@
 package org.mtr.announcement.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.mtr.announcement.runtime.RuntimeManager;
+import org.mtr.announcement.service.RuntimeService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -9,21 +9,21 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequestMapping("/api")
-public class RuntimeController {
+public final class RuntimeController {
 
-	private final RuntimeManager runtimeManager;
+	private final RuntimeService runtimeService;
 
-	public RuntimeController(RuntimeManager runtimeManager) {
-		this.runtimeManager = runtimeManager;
+	public RuntimeController(RuntimeService runtimeService) {
+		this.runtimeService = runtimeService;
 	}
 
 	@GetMapping("/start")
 	public boolean start() {
-		return runtimeManager.start();
+		return runtimeService.start();
 	}
 
 	@GetMapping("/stop")
 	public boolean stop() {
-		return runtimeManager.stop();
+		return runtimeService.stop();
 	}
 }

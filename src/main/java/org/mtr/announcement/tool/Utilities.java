@@ -15,10 +15,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public final class Utilities {
 
-	private static final int RETRIES = 5;
-
 	@Nullable
-	public static JsonElement getJson(String url) {
+	public static JsonElement getJson(String url, int retries) {
 		return runWithRetry(() -> {
 			final HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 			connection.setUseCaches(false);
@@ -27,11 +25,11 @@ public final class Utilities {
 			} finally {
 				connection.disconnect();
 			}
-		});
+		}, retries);
 	}
 
 	@Nullable
-	public static <T> T runWithRetry(ExceptionSupplier<T> exceptionSupplier) {
+	public static <T> T runWithRetry(ExceptionSupplier<T> exceptionSupplier, int retries) {
 		int i = 0;
 		while (true) {
 			try {
@@ -42,7 +40,7 @@ public final class Utilities {
 				} catch (InterruptedException ignored) {
 				}
 				i++;
-				if (i >= RETRIES) {
+				if (i >= retries) {
 					log.error("", e);
 					return null;
 				}
