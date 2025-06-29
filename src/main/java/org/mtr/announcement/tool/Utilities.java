@@ -3,6 +3,7 @@ package org.mtr.announcement.tool;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -26,6 +27,19 @@ public final class Utilities {
 				}
 			}
 		}
+	}
+
+	public static int findFreePort(int startingPort) {
+		for (int i = Math.max(1024, startingPort); i <= 65535; i++) {
+			// Start with port 80, then search from 1025 onwards
+			try (final ServerSocket serverSocket = new ServerSocket(i == 1024 ? 80 : i)) {
+				final int port = serverSocket.getLocalPort();
+				log.info("Found available port: {}", port);
+				return port;
+			} catch (Exception ignored) {
+			}
+		}
+		return 0;
 	}
 
 	@FunctionalInterface

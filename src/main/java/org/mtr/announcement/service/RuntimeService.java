@@ -7,7 +7,6 @@ import org.mtr.announcement.Application;
 import org.mtr.announcement.tool.Utilities;
 import org.springframework.stereotype.Service;
 
-import java.net.ServerSocket;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -17,7 +16,7 @@ public final class RuntimeService {
 	@Nullable
 	private Process process;
 
-	public final int port = findFreePort();
+	public final int port = Utilities.findFreePort(9880);
 	private final ProcessBuilder processBuilder = new ProcessBuilder(Application.SOURCE_DIRECTORY.resolve("runtime/python").toAbsolutePath().toString(), "api_v2.py", "-p", String.valueOf(port));
 
 	public boolean start() {
@@ -50,6 +49,7 @@ public final class RuntimeService {
 						process.waitFor();
 					}
 				}
+				log.info("Runtime stopped");
 				return 0;
 			}, Integer.MAX_VALUE) != null;
 		} else {
@@ -60,17 +60,5 @@ public final class RuntimeService {
 
 	public boolean isRunning() {
 		return process != null && process.isAlive();
-	}
-
-	private static int findFreePort() {
-		for (int i = 9880; i <= 65535; i++) {
-			try (final ServerSocket serverSocket = new ServerSocket(i)) {
-				final int port = serverSocket.getLocalPort();
-				log.info("Found available port: {}", port);
-				return port;
-			} catch (Exception ignored) {
-			}
-		}
-		return 0;
 	}
 }

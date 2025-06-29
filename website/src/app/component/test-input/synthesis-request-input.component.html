@@ -1,0 +1,21 @@
+<p-card header="Text To Speech Synthesis Testing">
+	<br/>
+	<form class="column gap" [formGroup]="formGroup">
+		<p-floatlabel variant="in">
+			<textarea pTextarea id="synthesisRequests" rows="8" style="resize: none" autocomplete="off" [spellcheck]="false" formControlName="synthesisRequests" [fluid]="true"></textarea>
+			<label for="synthesisRequests">Synthesis Request</label>
+		</p-floatlabel>
+		<div class="row gap center">
+			<div class="row gap-small ">
+				<p-button label="Submit" type="submit" [disabled]="isLoading() || serialize().length === 0" (onClick)="submit()"/>
+				<p-button label="Play" (onClick)="play()"/>
+			</div>
+			<div class="row gap-small center">
+				@if (isLoading()) {
+					<p-progressSpinner [style]="{ width: '2rem', height: '2rem' }"/>
+				}
+				<div>{{ getStatus() }}</div>
+			</div>
+		</div>
+	</form>
+</p-card>

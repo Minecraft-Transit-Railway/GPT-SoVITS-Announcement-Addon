@@ -10,20 +10,20 @@ import org.springframework.stereotype.Service;
 @Service
 public final class VoiceService {
 
-	private final Object2ObjectAVLTreeMap<String, Voice> languages = new Object2ObjectAVLTreeMap<>();
+	private final Object2ObjectAVLTreeMap<String, Voice> voices = new Object2ObjectAVLTreeMap<>();
 
-	public boolean addLanguage(Voice voice) {
-		if (languages.put(voice.id(), voice) == null) {
-			log.info("Added language [{}]", voice.id());
+	public boolean addVoice(Voice voice) {
+		if (voices.put(voice.id(), voice) == null) {
+			log.info("Added voice [{}]", voice.id());
 			return true;
 		} else {
-			log.info("Replaced language [{}]", voice.id());
+			log.info("Replaced voice [{}]", voice.id());
 			return false;
 		}
 	}
 
 	@Nullable
-	public Voice getLanguage(String code) {
-		return languages.get(code);
+	public Voice getVoice(String code) {
+		return voices.get(code);
 	}
 }

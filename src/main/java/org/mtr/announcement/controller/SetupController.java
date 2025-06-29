@@ -2,13 +2,11 @@ package org.mtr.announcement.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.mtr.announcement.service.SetupService;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api")
 public final class SetupController {
 

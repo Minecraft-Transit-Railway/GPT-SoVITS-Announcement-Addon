@@ -3,3 +3,5 @@
 build/
 
 GPT-SoVITS-Announcement-Addon/
+website/.gitignore
+src/main/resources/static/

@@ -1,0 +1,13 @@
+<p-card header="Add Voices">
+	<br/>
+	<form class="column gap" [formGroup]="formGroup">
+		<p-floatlabel variant="in">
+			<textarea pTextarea id="voiceTemplates" rows="8" style="resize: none" autocomplete="off" [spellcheck]="false" formControlName="voiceTemplates" [fluid]="true"></textarea>
+			<label for="voiceTemplates">Voice Templates</label>
+		</p-floatlabel>
+		<div class="row gap center">
+			<p-button label="Add" type="submit" [disabled]="serialize().length === 0" (onClick)="add()"/>
+			<div>{{ getStatus() }}</div>
+		</div>
+	</form>
+</p-card>

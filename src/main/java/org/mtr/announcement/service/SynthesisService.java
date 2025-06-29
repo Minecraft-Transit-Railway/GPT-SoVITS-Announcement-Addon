@@ -37,18 +37,17 @@ public final class SynthesisService {
 	}
 
 	public boolean synthesize(List<SynthesisRequest> synthesisRequests, int retries) {
-		clips.forEach(Line::close);
-		clips.clear();
+		final ObjectArrayList<Clip> newClips = new ObjectArrayList<>();
 		String previousVoiceId = null;
 
 		for (final SynthesisRequest synthesisRequest : synthesisRequests) {
-			final Voice voice = voiceService.getLanguage(synthesisRequest.voiceId());
+			final Voice voice = voiceService.getVoice(synthesisRequest.voiceId());
 			if (voice == null) {
 				log.error("Voice with id [{}] not found", synthesisRequest.voiceId());
 				return false;
 			}
 
-			if (!synthesisRequest.voiceId().equals(previousVoiceId) && !setLanguage(voice, retries)) {
+			if (!synthesisRequest.voiceId().equals(previousVoiceId) && !setVoice(voice, retries)) {
 				return false;
 			}
 
@@ -57,10 +56,13 @@ public final class SynthesisService {
 				return false;
 			}
 
-			clips.add(clip);
+			newClips.add(clip);
 			previousVoiceId = synthesisRequest.voiceId();
 		}
 
+		clips.forEach(Line::close);
+		clips.clear();
+		clips.addAll(newClips);
 		return true;
 	}
 
@@ -78,7 +80,7 @@ public final class SynthesisService {
 		}
 	}
 
-	private boolean setLanguage(Voice voice, int retries) {
+	private boolean setVoice(Voice voice, int retries) {
 		if (runtimeService.isRunning()) {
 			final RuntimeResponse runtimeResponse1 = Utilities.runWithRetry(() -> restTemplate.getForObject(String.format("http://localhost:%s/set_gpt_weights?weights_path=%s", runtimeService.port, voice.ckptPath()), RuntimeResponse.class), retries);
 			if (runtimeResponse1 == null) {
@@ -96,7 +98,7 @@ public final class SynthesisService {
 
 			return true;
 		} else {
-			log.error("Failed to set language; runtime not running");
+			log.error("Failed to set voice; runtime not running");
 			return false;
 		}
 	}

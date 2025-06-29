@@ -11,6 +11,7 @@ import java.util.List;
 
 @Slf4j
 @RestController
+@CrossOrigin(origins = "http://localhost:4200")
 @RequestMapping("/api")
 public final class SynthesisController {
 
@@ -22,9 +23,9 @@ public final class SynthesisController {
 		this.synthesisService = synthesisService;
 	}
 
-	@GetMapping("/addLanguage")
-	public boolean addLanguage(@RequestParam String id, @RequestParam String runtimeCode, @RequestParam String ckptPath, @RequestParam String pthPath, @RequestParam String voiceSamplePath, @RequestParam String voiceSampleText) {
-		return voiceService.addLanguage(new Voice(id, runtimeCode, ckptPath, pthPath, voiceSamplePath, voiceSampleText));
+	@GetMapping("/addVoice")
+	public boolean addVoice(@RequestParam String id, @RequestParam String runtimeCode, @RequestParam String ckptPath, @RequestParam String pthPath, @RequestParam String voiceSamplePath, @RequestParam String voiceSampleText) {
+		return voiceService.addVoice(new Voice(id, runtimeCode, ckptPath, pthPath, voiceSamplePath, voiceSampleText));
 	}
 
 	@PostMapping("/synthesize")
