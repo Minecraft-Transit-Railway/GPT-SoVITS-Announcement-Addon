@@ -1,156 +1,94 @@
 package org.mtr.announcement.service;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import jakarta.annotation.Nullable;
+import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import lombok.extern.slf4j.Slf4j;
+import org.mtr.announcement.data.ClipCollection;
 import org.mtr.announcement.data.SynthesisRequest;
 import org.mtr.announcement.data.Voice;
-import org.mtr.announcement.tool.Utilities;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StreamUtils;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
-import javax.sound.sampled.*;
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
+import javax.sound.sampled.Line;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @Service
 public final class SynthesisService {
 
-	private int clipIndex = 0;
-	private final ObjectArrayList<Clip> clips = new ObjectArrayList<>();
+	private final List<ClipCollection> clipCollections = Collections.synchronizedList(new ObjectArrayList<>());
 
-	private final RestTemplate restTemplate;
+	private final WebClient webClient;
 	private final VoiceService voiceService;
-	private final RuntimeService runtimeService;
 
-	public SynthesisService(RestTemplate restTemplate, VoiceService voiceService, RuntimeService runtimeService) {
-		this.restTemplate = restTemplate;
+	private final int MAX_CLIP_COLLECTIONS = 10;
+
+	public SynthesisService(WebClient webClient, VoiceService voiceService) {
+		this.webClient = webClient;
 		this.voiceService = voiceService;
-		this.runtimeService = runtimeService;
 	}
 
-	public boolean synthesize(List<SynthesisRequest> synthesisRequests, int retries) {
-		final ObjectArrayList<Clip> newClips = new ObjectArrayList<>();
-		String previousVoiceId = null;
+	public Mono<Boolean> synthesize(String key, List<SynthesisRequest> synthesisRequests, int retries) {
+		clipCollections.removeIf(clipCollection -> {
+			if (clipCollection.key.equals(key)) {
+				clipCollection.clips.forEach(Line::close);
+				return true;
+			}
+			return false;
+		});
 
-		for (final SynthesisRequest synthesisRequest : synthesisRequests) {
-			final Voice voice = voiceService.getVoice(synthesisRequest.voiceId());
-			if (voice == null) {
+		return Flux.fromIterable(synthesisRequests).flatMapSequential(synthesisRequest -> {
+			final ObjectIntImmutablePair<Voice> voiceAndRuntimePort = voiceService.getVoiceAndRuntimePort(synthesisRequest.voiceId());
+			if (voiceAndRuntimePort == null) {
 				log.error("Voice with id [{}] not found", synthesisRequest.voiceId());
-				return false;
+				return Mono.error(new RuntimeException("Voice not found"));
 			}
 
-			if (!synthesisRequest.voiceId().equals(previousVoiceId) && !setVoice(voice, retries)) {
-				return false;
+			return webClient.get().uri(String.format(
+					"http://localhost:%s/tts?text=%s&text_lang=%s&ref_audio_path=%s&prompt_lang=%s&prompt_text=%s",
+					voiceAndRuntimePort.rightInt(),
+					synthesisRequest.text(),
+					voiceAndRuntimePort.left().runtimeCode(),
+					voiceAndRuntimePort.left().voiceSamplePath(),
+					voiceAndRuntimePort.left().runtimeCode(),
+					voiceAndRuntimePort.left().voiceSampleText()
+			)).retrieve().bodyToMono(byte[].class).retry(retries).flatMap(audioBytes -> Mono.fromCallable(() -> {
+				final AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(new ByteArrayInputStream(audioBytes)));
+				final Clip clip = AudioSystem.getClip();
+				clip.open(audioInputStream);
+				log.info("Text synthesis successful for [{}]", synthesisRequest.text());
+				return clip;
+			}).subscribeOn(Schedulers.boundedElastic()));
+		}).collectList().map(clips -> {
+			while (clipCollections.size() >= MAX_CLIP_COLLECTIONS) {
+				clipCollections.remove(0).clips.forEach(Line::close);
 			}
-
-			final Clip clip = synthesize(synthesisRequest, voice, retries);
-			if (clip == null) {
-				return false;
-			}
-
-			newClips.add(clip);
-			previousVoiceId = synthesisRequest.voiceId();
-		}
-
-		clips.forEach(Line::close);
-		clips.clear();
-		clips.addAll(newClips);
-		return true;
-	}
-
-	public boolean play() {
-		if (clips.isEmpty()) {
-			log.warn("No clips to play");
-			return false;
-		} else {
-			log.info("Playing {} clip(s)", clips.size());
-			clipIndex = clips.size();
-			clips.forEach(DataLine::stop);
-			clipIndex = 0;
-			playInternal();
+			clipCollections.add(new ClipCollection(key, clips));
 			return true;
-		}
+		}).onErrorResume(e -> {
+			log.error("Synthesis failed", e);
+			return Mono.just(false);
+		});
 	}
 
-	private boolean setVoice(Voice voice, int retries) {
-		if (runtimeService.isRunning()) {
-			final RuntimeResponse runtimeResponse1 = Utilities.runWithRetry(() -> restTemplate.getForObject(String.format("http://localhost:%s/set_gpt_weights?weights_path=%s", runtimeService.port, voice.ckptPath()), RuntimeResponse.class), retries);
-			if (runtimeResponse1 == null) {
-				log.error("Failed to set GPT weights");
-				return false;
+	public boolean play(String key) {
+		for (final ClipCollection clipCollection : clipCollections) {
+			if (clipCollection.key.equals(key)) {
+				clipCollection.play();
+				return true;
 			}
-			log.info("Set GPT weights successful with message [{}]", runtimeResponse1.message);
-
-			final RuntimeResponse runtimeResponse2 = Utilities.runWithRetry(() -> restTemplate.getForObject(String.format("http://localhost:%s/set_sovits_weights?weights_path=%s", runtimeService.port, voice.pthPath()), RuntimeResponse.class), retries);
-			if (runtimeResponse2 == null) {
-				log.error("Failed to set SoVITS weights");
-				return false;
-			}
-			log.info("Set SoVITS weights successful with message [{}]", runtimeResponse2.message);
-
-			return true;
-		} else {
-			log.error("Failed to set voice; runtime not running");
-			return false;
 		}
-	}
 
-	@Nullable
-	private Clip synthesize(SynthesisRequest synthesisRequest, Voice voice, int retries) {
-		if (runtimeService.isRunning()) {
-			try {
-				final byte[] audioBytes = Utilities.runWithRetry(() -> restTemplate.execute(new URI(String.format(
-						"http://localhost:%s/tts?text=%s&text_lang=%s&ref_audio_path=%s&prompt_lang=%s&prompt_text=%s",
-						runtimeService.port,
-						URLEncoder.encode(synthesisRequest.text(), StandardCharsets.UTF_8),
-						URLEncoder.encode(voice.runtimeCode(), StandardCharsets.UTF_8),
-						URLEncoder.encode(voice.voiceSamplePath(), StandardCharsets.UTF_8),
-						URLEncoder.encode(voice.runtimeCode(), StandardCharsets.UTF_8),
-						URLEncoder.encode(voice.voiceSampleText(), StandardCharsets.UTF_8)
-				)), HttpMethod.GET, null, clientHttpResponse -> StreamUtils.copyToByteArray(clientHttpResponse.getBody())), retries);
-
-				if (audioBytes == null || audioBytes.length == 0) {
-					log.error("Failed to get audio input stream");
-					return null;
-				}
-
-				try (final AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(new ByteArrayInputStream(audioBytes)))) {
-					final Clip clip = AudioSystem.getClip();
-					clip.open(audioInputStream);
-					clip.addLineListener(event -> {
-						if (event.getType() == LineEvent.Type.STOP) {
-							clipIndex++;
-							playInternal();
-						}
-					});
-					return clip;
-				}
-			} catch (Exception e) {
-				log.error("Failed to synthesize", e);
-				return null;
-			}
-		} else {
-			log.error("Failed to synthesize; runtime not running");
-			return null;
-		}
-	}
-
-	private void playInternal() {
-		if (clipIndex < clips.size()) {
-			final Clip clip = clips.get(clipIndex);
-			clip.setFramePosition(0);
-			clip.start();
-		}
-	}
-
-	private record RuntimeResponse(String message) {
+		log.warn("Clips for key [{}] not found", key);
+		return false;
 	}
 }

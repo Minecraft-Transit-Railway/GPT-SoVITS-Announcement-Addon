@@ -1,0 +1,9 @@
+<div class="row gap center">
+	<ng-content/>
+	<div class="row gap-small center">
+		@if (loading) {
+			<p-progressSpinner [style]="{ width: '1.5rem', height: '1.5rem' }"/>
+		}
+		<div>{{ status }}</div>
+	</div>
+</div>

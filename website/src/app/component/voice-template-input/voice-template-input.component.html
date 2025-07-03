@@ -1,13 +1,34 @@
 <p-card header="Add Voices">
 	<br/>
 	<form class="column gap" [formGroup]="formGroup">
-		<p-floatlabel variant="in">
-			<textarea pTextarea id="voiceTemplates" rows="8" style="resize: none" autocomplete="off" [spellcheck]="false" formControlName="voiceTemplates" [fluid]="true"></textarea>
+		<p-floatlabel variant="on">
+			<textarea pTextarea class="code-text-area" id="voiceTemplates" rows="8" style="resize: none" autocomplete="off" [spellcheck]="false" formControlName="voiceTemplates" [fluid]="true"></textarea>
 			<label for="voiceTemplates">Voice Templates</label>
 		</p-floatlabel>
 		<div class="row gap center">
-			<p-button label="Add" type="submit" [disabled]="serialize().length === 0" (onClick)="add()"/>
-			<div>{{ getStatus() }}</div>
+			<app-control-with-status [loading]="isAddVoicesLoading()" [status]="getStatus()">
+				<p-button label="Add" type="submit" [disabled]="isAddVoicesLoading() || serialize().length === 0" (onClick)="add()"/>
+			</app-control-with-status>
+			<div class="spacing"></div>
+			<p-button label="View Added Voices" link (onClick)="showVoicesDialog()"/>
 		</div>
 	</form>
 </p-card>
+
+<p-dialog [header]="'Added Voices' + (isVoiceDialogLoading() ? '' : ' (' + voiceIds.length + ')')" [modal]="true" [(visible)]="voicesDialogVisible" [style]="{ width: '16rem' }" [dismissableMask]="true">
+	@if (isVoiceDialogLoading()) {
+		<div class="column center">
+			<p-progressSpinner/>
+		</div>
+	} @else {
+		@if (voiceIds.length === 0) {
+			<div>No voices added.</div>
+		} @else {
+			<div class="column">
+				@for (voiceId of voiceIds; track $index) {
+					<div>{{ voiceId }}</div>
+				}
+			</div>
+		}
+	}
+</p-dialog>

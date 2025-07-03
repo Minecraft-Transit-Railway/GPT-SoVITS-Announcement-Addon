@@ -6,6 +6,7 @@ import org.mtr.announcement.data.Voice;
 import org.mtr.announcement.service.SynthesisService;
 import org.mtr.announcement.service.VoiceService;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 
@@ -24,17 +25,22 @@ public final class SynthesisController {
 	}
 
 	@GetMapping("/addVoice")
-	public boolean addVoice(@RequestParam String id, @RequestParam String runtimeCode, @RequestParam String ckptPath, @RequestParam String pthPath, @RequestParam String voiceSamplePath, @RequestParam String voiceSampleText) {
-		return voiceService.addVoice(new Voice(id, runtimeCode, ckptPath, pthPath, voiceSamplePath, voiceSampleText));
+	public Mono<Boolean> addVoice(@RequestParam String id, @RequestParam String runtimeCode, @RequestParam String ckptPath, @RequestParam String pthPath, @RequestParam String voiceSamplePath, @RequestParam String voiceSampleText, @RequestParam int retries) {
+		return voiceService.addVoice(new Voice(id, runtimeCode, ckptPath, pthPath, voiceSamplePath, voiceSampleText), retries);
 	}
 
 	@PostMapping("/synthesize")
-	public boolean synthesize(@RequestBody List<SynthesisRequest> synthesisRequests, @RequestParam int retries) {
-		return synthesisService.synthesize(synthesisRequests, retries);
+	public Mono<Boolean> synthesize(@RequestBody List<SynthesisRequest> synthesisRequests, @RequestParam String key, @RequestParam int retries) {
+		return synthesisService.synthesize(key, synthesisRequests, retries);
 	}
 
 	@GetMapping("/play")
-	public boolean play() {
-		return synthesisService.play();
+	public boolean play(@RequestParam String key) {
+		return synthesisService.play(key);
+	}
+
+	@GetMapping("/voices")
+	public List<String> getVoices() {
+		return voiceService.getVoiceIds();
 	}
 }

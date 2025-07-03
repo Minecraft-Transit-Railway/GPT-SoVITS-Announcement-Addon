@@ -8,7 +8,7 @@ import {HttpClient} from "@angular/common/http";
 import {url} from "../../utility/settings";
 import {SynthesisRequest} from "../../data/synthesisRequest";
 import {TextInputBaseComponent} from "../text-input-base/text-input-base.component";
-import {ProgressSpinner} from "primeng/progressspinner";
+import {ControlWithStatusComponent} from "../control-with-status/control-with-status.component";
 
 @Component({
 	selector: "app-synthesis-request-input",
@@ -18,7 +18,7 @@ import {ProgressSpinner} from "primeng/progressspinner";
 		TextareaModule,
 		ButtonModule,
 		ReactiveFormsModule,
-		ProgressSpinner,
+		ControlWithStatusComponent,
 	],
 	templateUrl: "./synthesis-request-input.component.html",
 	styleUrl: "./synthesis-request-input.component.css",
@@ -39,18 +39,50 @@ export class SynthesisRequestInputComponent extends TextInputBaseComponent<Synth
 		if (synthesisRequests.length > 0) {
 			this.loading = true;
 			this.status = "Text to speech synthesis in progress...";
-			this.httpClient.post<boolean>(`${url}/api/synthesize?retries=2`, synthesisRequests).subscribe(success => {
-				this.loading = false;
-				this.status = success ? "Text to speech synthesis success" : "Text to speech synthesis failed";
+
+			this.httpClient.get<string[]>(`${url}/api/voices`).subscribe({
+				next: voiceIds => {
+					const missingVoiceIds: string[] = [];
+					synthesisRequests.forEach(synthesisRequest => {
+						if (!voiceIds.includes(synthesisRequest.voiceId)) {
+							missingVoiceIds.push(synthesisRequest.voiceId);
+						}
+					});
+
+					if (missingVoiceIds.length === 0) {
+						this.httpClient.post<boolean>(`${url}/api/synthesize?key=test&retries=2`, synthesisRequests).subscribe({
+							next: success => {
+								this.loading = false;
+								this.status = success ? "Text to speech synthesis successful" : "Text to speech synthesis failed";
+							},
+							error: () => {
+								this.loading = false;
+								this.status = "Text to speech synthesis failed";
+							},
+						});
+					} else {
+						this.loading = false;
+						this.status = `${missingVoiceIds.length} missing voice(s): ${missingVoiceIds.join(", ")}`;
+					}
+				},
+				error: () => {
+					this.loading = false;
+					this.status = "Text to speech synthesis failed";
+				},
 			});
 		}
 	}
 
 	play() {
-		this.httpClient.get<boolean>(`${url}/api/play`).subscribe(success => {
-			if (!success) {
-				this.status = "Nothing to play";
-			}
+		this.httpClient.get<boolean>(`${url}/api/play?key=test`).subscribe({
+			next: success => {
+				if (!success) {
+					this.status = "Nothing to play";
+				}
+			},
+			error: () => {
+				this.status = "Play failed";
+			},
 		});
 	}
 
@@ -63,6 +95,6 @@ export class SynthesisRequestInputComponent extends TextInputBaseComponent<Synth
 	}
 
 	serialize() {
-		return this.serializeRaw(this.formGroup.getRawValue().synthesisRequests);
+		return this.serializeRaw(this.formGroup.get("synthesisRequests"));
 	}
 }

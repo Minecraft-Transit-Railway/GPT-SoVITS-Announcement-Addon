@@ -1,24 +1,14 @@
 <p-card header="Runtime Control Panel">
 	<br/>
 	<div class="row gap center">
-		<div class="row gap-small center" [formGroup]="formGroup">
-			<p-toggleswitch inputId="runtimeToggle" formControlName="runtimeToggle" (onChange)="start($event)"/>
-			<label for="runtimeToggle">Start Runtime</label>
-		</div>
-		<div class="spacing"></div>
-		<div>{{ getVersion() }}</div>
 		@if (getVersion()) {
-			<div class="row gap center">
+			<app-control-with-status [loading]="isLoading()" [status]="getStatus()">
 				<p-splitbutton label="Reinstall" [disabled]="isLoading()" (onClick)="install()" [model]="reinstallOptions"/>
-				<div class="row gap-small center">
-					@if (isLoading()) {
-						<p-progressSpinner [style]="{ width: '2rem', height: '2rem' }"/>
-					}
-					<div>{{ getStatus() }}</div>
-				</div>
-			</div>
+			</app-control-with-status>
 		} @else {
 			<p-button label="Install" [disabled]="isLoading()" (onClick)="install()"/>
 		}
+		<div class="spacing"></div>
+		<div>{{ getVersion() }}</div>
 	</div>
 </p-card>

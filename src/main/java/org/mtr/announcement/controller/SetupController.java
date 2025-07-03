@@ -3,6 +3,7 @@ package org.mtr.announcement.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.mtr.announcement.service.SetupService;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @RestController
@@ -22,7 +23,7 @@ public final class SetupController {
 	}
 
 	@GetMapping("/download")
-	public boolean download(@RequestParam int retries) {
+	public Mono<Boolean> download(@RequestParam int retries) {
 		return setupService.download(retries);
 	}
 

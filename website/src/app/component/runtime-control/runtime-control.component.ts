@@ -1,13 +1,13 @@
 import {Component} from "@angular/core";
 import {CardModule} from "primeng/card";
 import {FormControl, FormGroup, FormsModule, ReactiveFormsModule} from "@angular/forms";
-import {ToggleSwitchChangeEvent, ToggleSwitchModule} from "primeng/toggleswitch";
-import {RuntimeService} from "../../service/runtime.service";
+import {ToggleSwitchModule} from "primeng/toggleswitch";
 import {SetupService} from "../../service/setup.service";
 import {SplitButtonModule} from "primeng/splitbutton";
 import {MenuItem} from "primeng/api";
 import {ButtonModule} from "primeng/button";
 import {ProgressSpinnerModule} from "primeng/progressspinner";
+import {ControlWithStatusComponent} from "../control-with-status/control-with-status.component";
 
 @Component({
 	selector: "app-runtime-control-input",
@@ -19,6 +19,7 @@ import {ProgressSpinnerModule} from "primeng/progressspinner";
 		ProgressSpinnerModule,
 		ReactiveFormsModule,
 		FormsModule,
+		ControlWithStatusComponent,
 	],
 	templateUrl: "./runtime-control.component.html",
 	styleUrl: "./runtime-control.component.css",
@@ -31,7 +32,7 @@ export class RuntimeControlComponent {
 	private loading = false;
 	private status = "";
 
-	constructor(private readonly setupService: SetupService, private readonly runtimeService: RuntimeService) {
+	constructor(private readonly setupService: SetupService) {
 		this.reinstallOptions = [
 			{
 				label: "Prepare Files",
@@ -50,15 +51,6 @@ export class RuntimeControlComponent {
 				command: () => this.finish(),
 			},
 		];
-		runtimeService.stateChanged.subscribe(isRunning => {
-			const runtimeToggle = this.formGroup.get("runtimeToggle");
-			if (runtimeToggle) {
-				runtimeToggle.enable();
-				if (runtimeToggle.getRawValue() !== isRunning) {
-					runtimeToggle.setValue(isRunning);
-				}
-			}
-		});
 	}
 
 	install() {
@@ -75,15 +67,6 @@ export class RuntimeControlComponent {
 
 	getVersion() {
 		return this.setupService.getVersion();
-	}
-
-	start(event: ToggleSwitchChangeEvent) {
-		this.formGroup.get("runtimeToggle")?.disable();
-		if (event.checked) {
-			this.runtimeService.start();
-		} else {
-			this.runtimeService.stop();
-		}
 	}
 
 	private prepare(callback?: () => void) {

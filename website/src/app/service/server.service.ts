@@ -15,10 +15,9 @@ export class ServerService {
 	private dataTimeoutId = 0;
 	private clientTimeoutId = 0;
 	private lastAnnouncedKey = "";
-	private readyToPlay = false;
 	private stations: Record<string, Station> = {};
 	private routes: Record<string, Route> = {};
-	private clients: Record<string, Client> = {};
+	private client?: Client;
 
 	constructor(private readonly httpClient: HttpClient) {
 	}
@@ -107,41 +106,35 @@ export class ServerService {
 				}[],
 			},
 		}>(`${serverUrl}/mtr/api/map/clients?dimension=${dimension}`).subscribe(({data: {clients}}) => {
-			this.clients = {};
-
-			clients.forEach(client => {
-				this.clients[client.id] = {
-					id: client.id,
-					notAtStation: !client.stationId,
-					route: this.routes[client.routeId],
-					station1: this.stations[client.routeStationId1],
-					station2: this.stations[client.routeStationId2],
+			const tempClient = clients.find(client => client.id === playerUuid);
+			if (tempClient) {
+				this.client = {
+					id: tempClient.id,
+					atStation: !!tempClient.stationId,
+					route: this.routes[tempClient.routeId],
+					station1: this.stations[tempClient.routeStationId1],
+					station2: this.stations[tempClient.routeStationId2],
 				};
-			});
-
-			const client = this.clients[playerUuid];
-			if (client) {
-				this.prepareAnnouncement(client);
-				if (this.readyToPlay && client.notAtStation) {
-					this.readyToPlay = false;
-					this.httpClient.get<boolean>(`${url}/api/play`).subscribe();
-				}
+				this.prepareAnnouncement();
 			}
 
 			this.dataTimeoutId = setTimeout(() => this.sendClientsRequest(serverUrl, dimension, playerUuid), clientInterval) as unknown as number;
 		});
 	}
 
-	private prepareAnnouncement(client: Client) {
-		if (client.route && client.station1 && client.station2) {
-			const key = `${client.route.id}_${client.station1.id}_${client.station2.id}`;
+	private prepareAnnouncement() {
+		if (this.client && this.client.route && this.client.station1 && this.client.station2) {
+			const announcementRouteId = this.client.route.id;
+			const announcementStationId = this.client.station2.id;
+			const key = `${announcementRouteId}_${this.client.station1.id}_${announcementStationId}`;
+
 			if (key !== this.lastAnnouncedKey) {
 				this.lastAnnouncedKey = key;
-				const currentColor = client.route.color;
+				const currentColor = this.client.route.color;
 				const synthesisRequests: { voiceId: string, text: string, isCjk: boolean, interchangeNames: string[] }[] = [];
 				let cjkCount = 0;
 
-				client.station2.name.split("|").forEach(namePart => {
+				this.client.station2.name.split("|").forEach(namePart => {
 					if (ServerService.isCjk(namePart)) {
 						synthesisRequests.push({voiceId: cjkCount === 0 ? "mtr-canto" : "mtr-mandarin", text: `下一站：${namePart}。`, isCjk: true, interchangeNames: []});
 						cjkCount++;
@@ -154,7 +147,7 @@ export class ServerService {
 					synthesisRequests.splice(1, 0, {voiceId: "mtr-mandarin", text: synthesisRequests[0].text, isCjk: true, interchangeNames: []});
 				}
 
-				client.station2.routes.filter(route => route.color !== currentColor).sort((route1, route2) => route1.color - route2.color).forEach(route => {
+				this.client.station2.routes.filter(route => route.color !== currentColor).sort((route1, route2) => route1.color - route2.color).forEach(route => {
 					const visitedIndices: number[] = [];
 					let firstCjk: string | undefined;
 					route.name.split("||")[0].split("|").forEach(routeNamePart => {
@@ -188,9 +181,9 @@ export class ServerService {
 					}
 				});
 
-				this.httpClient.post<boolean>(`${url}/api/synthesize?retries=2`, synthesisRequests).subscribe(success => {
-					if (success) {
-						this.readyToPlay = true;
+				this.httpClient.post<boolean>(`${url}/api/synthesize?key=test&retries=2`, synthesisRequests).subscribe(success => {
+					if (success && this.client && this.client.route?.id === announcementRouteId && (this.client.atStation && this.client.station1?.id === announcementStationId || this.client.station2?.id === announcementStationId)) {
+						this.httpClient.get<boolean>(`${url}/api/play?key=test`).subscribe();
 					}
 				});
 			}

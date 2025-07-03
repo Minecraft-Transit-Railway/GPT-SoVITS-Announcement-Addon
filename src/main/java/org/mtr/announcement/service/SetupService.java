@@ -5,9 +5,12 @@ import org.apache.commons.io.FileUtils;
 import org.mtr.announcement.Application;
 import org.mtr.announcement.tool.Utilities;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -21,15 +24,16 @@ import java.util.regex.Pattern;
 @Service
 public final class SetupService {
 
-	private final RestTemplate restTemplate;
+	private final WebClient webClient;
 
-	public static final Path EXTRACT_DIRECTORY = Application.APPLICATION_PATH.resolve("extract");
+	private static final Path EXTRACT_DIRECTORY = Application.APPLICATION_PATH.resolve("extract");
 	private static final Path ZIP_FILE = Application.APPLICATION_PATH.resolve(Application.NAMESPACE + ".7z");
 	private static final Path VERSION_FILE = Application.APPLICATION_PATH.resolve("version.txt");
 	private static final String[] EXTRACT_LOCATIONS = {"api_v2.py", "GPT_SoVITS/*", "runtime/*", "tools/*"};
+	private static final Pattern DOWNLOAD_URL_PATTERN = Pattern.compile("https://huggingface\\.co/lj1995/GPT-SoVITS-windows-package/resolve/main/GPT-SoVITS-[\\w-]+\\.7z\\?download=true");
 
-	public SetupService(RestTemplate restTemplate) {
-		this.restTemplate = restTemplate;
+	public SetupService(WebClient webClient) {
+		this.webClient = webClient;
 	}
 
 	public boolean prepare() {
@@ -45,32 +49,37 @@ public final class SetupService {
 		}
 	}
 
-	public boolean download(int retries) {
-		try {
-			log.info("Finding latest release from GitHub");
-			final GitHubLatestRelease gitHubLatestRelease = Utilities.runWithRetry(() -> restTemplate.getForObject("https://api.github.com/repos/RVC-Boss/GPT-SoVITS/releases/latest", GitHubLatestRelease.class), retries);
-			if (gitHubLatestRelease == null) {
-				return false;
+	public Mono<Boolean> download(int retries) {
+		log.info("Finding latest release from GitHub");
+		return webClient.get().uri("https://api.github.com/repos/RVC-Boss/GPT-SoVITS/releases/latest").retrieve().bodyToMono(GitHubLatestRelease.class).retry(retries).onErrorResume(e -> {
+			log.error("Failed to fetch latest release", e);
+			return Mono.empty();
+		}).flatMap(gitHubLatestRelease -> {
+			try {
+				FileUtils.write(VERSION_FILE.toFile(), gitHubLatestRelease.name, StandardCharsets.UTF_8);
+			} catch (IOException e) {
+				log.warn("Failed to write version file", e);
 			}
 
-			final Matcher matcher = Pattern.compile("https://huggingface\\.co/lj1995/GPT-SoVITS-windows-package/resolve/main/GPT-SoVITS-[\\w-]+\\.7z\\?download=true").matcher(gitHubLatestRelease.body);
-			FileUtils.write(VERSION_FILE.toFile(), gitHubLatestRelease.name, StandardCharsets.UTF_8);
-			if (!matcher.find()) {
+			final Matcher matcher = DOWNLOAD_URL_PATTERN.matcher(gitHubLatestRelease.body);
+
+			if (matcher.find()) {
+				final String url = matcher.group();
+				log.info("Downloading {} from [{}]", Application.NAMESPACE, url);
+
+				return Mono.fromCallable(() -> Utilities.runWithRetry(() -> {
+					FileUtils.copyURLToFile(new URL(url), ZIP_FILE.toFile());
+					log.info("Download complete");
+					return 0;
+				}, retries) != null).onErrorResume(e -> {
+					log.error("Failed to download", e);
+					return Mono.just(false);
+				}).subscribeOn(Schedulers.boundedElastic());
+			} else {
 				log.error("Failed to find download URL");
-				return false;
+				return Mono.just(false);
 			}
-
-			final String url = matcher.group();
-			log.info("Downloading {} from [{}]", Application.NAMESPACE, url);
-			return Utilities.runWithRetry(() -> {
-				FileUtils.copyURLToFile(new URL(url), ZIP_FILE.toFile());
-				log.info("Download complete");
-				return 0;
-			}, retries) != null;
-		} catch (Exception e) {
-			log.error("Failed to download", e);
-			return false;
-		}
+		}).defaultIfEmpty(false);
 	}
 
 	public boolean unzip(int retries) {

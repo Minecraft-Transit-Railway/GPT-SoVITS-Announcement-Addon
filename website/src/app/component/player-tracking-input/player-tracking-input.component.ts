@@ -53,7 +53,7 @@ export class PlayerTrackingInputComponent implements OnInit {
 	update() {
 		const data = this.formGroup.getRawValue();
 		if (data.serverUrl && data.trackingDimension !== null && data.trackingPlayer) {
-			this.serverService.updateServer(data.serverUrl, data.trackingDimension, data.trackingPlayer);
+			this.serverService.updateServer(data.serverUrl.endsWith("/") ? data.serverUrl.substring(0, data.serverUrl.length - 1) : data.serverUrl, data.trackingDimension, data.trackingPlayer);
 		}
 	}
 }

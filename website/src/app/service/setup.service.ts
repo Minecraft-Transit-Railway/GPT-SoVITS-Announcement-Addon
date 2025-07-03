@@ -11,19 +11,19 @@ export class SetupService {
 	}
 
 	public prepare(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/prepare`).subscribe(callback);
+		this.httpClient.get<boolean>(`${url}/api/prepare`).subscribe({next: success => callback(success), error: () => callback(false)});
 	}
 
 	public download(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/download?retries=100`).subscribe(callback);
+		this.httpClient.get<boolean>(`${url}/api/download?retries=100`).subscribe({next: success => callback(success), error: () => callback(false)});
 	}
 
 	public unzip(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/unzip?retries=100`).subscribe(callback);
+		this.httpClient.get<boolean>(`${url}/api/unzip?retries=100`).subscribe({next: success => callback(success), error: () => callback(false)});
 	}
 
 	public finish(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/finish`).subscribe(callback);
+		this.httpClient.get<boolean>(`${url}/api/finish`).subscribe({next: success => callback(success), error: () => callback(false)});
 	}
 
 	public getVersion() {
