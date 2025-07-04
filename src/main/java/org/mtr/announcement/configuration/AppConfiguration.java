@@ -6,6 +6,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.reactive.function.client.WebClient;
 
 @Slf4j
@@ -17,6 +18,16 @@ public class AppConfiguration {
 	@Bean
 	public WebClient webClient() {
 		return WebClient.builder().codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(AUDIO_BUFFER_SIZE)).build();
+	}
+
+	@Bean
+	public ThreadPoolTaskScheduler taskScheduler() {
+		ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
+		threadPoolTaskScheduler.setPoolSize(2);
+		threadPoolTaskScheduler.setThreadNamePrefix("MTR-Scheduler-");
+		threadPoolTaskScheduler.setRemoveOnCancelPolicy(true);
+		threadPoolTaskScheduler.initialize();
+		return threadPoolTaskScheduler;
 	}
 
 	@EventListener(ApplicationReadyEvent.class)

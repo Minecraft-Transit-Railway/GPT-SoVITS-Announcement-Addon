@@ -1,6 +1,5 @@
 package org.mtr.announcement.service;
 
-import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectIntImmutablePair;
 import lombok.extern.slf4j.Slf4j;
 import org.mtr.announcement.data.ClipCollection;
@@ -19,18 +18,30 @@ import javax.sound.sampled.Line;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
 public final class SynthesisService {
 
-	private final List<ClipCollection> clipCollections = Collections.synchronizedList(new ObjectArrayList<>());
+	private final Map<String, ClipCollection> clipCollections = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75F, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, ClipCollection> eldest) {
+			final boolean shouldRemove = size() > MAX_CLIP_COLLECTIONS;
+			if (shouldRemove) {
+				log.info("Removing oldest clip collection for key [{}]", eldest.getKey());
+				eldest.getValue().clips.forEach(Line::close);
+			}
+			return shouldRemove;
+		}
+	});
 
 	private final WebClient webClient;
 	private final VoiceService voiceService;
 
-	private final int MAX_CLIP_COLLECTIONS = 10;
+	private static final int MAX_CLIP_COLLECTIONS = 10;
 
 	public SynthesisService(WebClient webClient, VoiceService voiceService) {
 		this.webClient = webClient;
@@ -38,14 +49,6 @@ public final class SynthesisService {
 	}
 
 	public Mono<Boolean> synthesize(String key, List<SynthesisRequest> synthesisRequests, int retries) {
-		clipCollections.removeIf(clipCollection -> {
-			if (clipCollection.key.equals(key)) {
-				clipCollection.clips.forEach(Line::close);
-				return true;
-			}
-			return false;
-		});
-
 		return Flux.fromIterable(synthesisRequests).flatMapSequential(synthesisRequest -> {
 			final ObjectIntImmutablePair<Voice> voiceAndRuntimePort = voiceService.getVoiceAndRuntimePort(synthesisRequest.voiceId());
 			if (voiceAndRuntimePort == null) {
@@ -62,17 +65,21 @@ public final class SynthesisService {
 					voiceAndRuntimePort.left().runtimeCode(),
 					voiceAndRuntimePort.left().voiceSampleText()
 			)).retrieve().bodyToMono(byte[].class).retry(retries).flatMap(audioBytes -> Mono.fromCallable(() -> {
-				final AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(new ByteArrayInputStream(audioBytes)));
-				final Clip clip = AudioSystem.getClip();
-				clip.open(audioInputStream);
-				log.info("Text synthesis successful for [{}]", synthesisRequest.text());
-				return clip;
+				try (final AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new BufferedInputStream(new ByteArrayInputStream(audioBytes)))) {
+					final Clip clip = AudioSystem.getClip();
+					clip.open(audioInputStream);
+					log.info("Text synthesis successful for [{}]", synthesisRequest.text());
+					return clip;
+				}
 			}).subscribeOn(Schedulers.boundedElastic()));
 		}).collectList().map(clips -> {
-			while (clipCollections.size() >= MAX_CLIP_COLLECTIONS) {
-				clipCollections.remove(0).clips.forEach(Line::close);
+			synchronized (clipCollections) {
+				final ClipCollection oldClipCollection = clipCollections.remove(key);
+				if (oldClipCollection != null) {
+					oldClipCollection.clips.forEach(Line::close);
+				}
+				clipCollections.put(key, new ClipCollection(key, clips));
 			}
-			clipCollections.add(new ClipCollection(key, clips));
 			return true;
 		}).onErrorResume(e -> {
 			log.error("Synthesis failed", e);
@@ -81,8 +88,9 @@ public final class SynthesisService {
 	}
 
 	public boolean play(String key) {
-		for (final ClipCollection clipCollection : clipCollections) {
-			if (clipCollection.key.equals(key)) {
+		synchronized (clipCollections) {
+			final ClipCollection clipCollection = clipCollections.get(key);
+			if (clipCollection != null) {
 				clipCollection.play();
 				return true;
 			}

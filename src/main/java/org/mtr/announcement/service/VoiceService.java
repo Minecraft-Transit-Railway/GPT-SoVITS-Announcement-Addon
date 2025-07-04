@@ -93,7 +93,7 @@ public final class VoiceService {
 	}
 
 	@PreDestroy
-	private void stopAll() {
+	private void shutdown() {
 		voiceWithRuntimeByVoiceId.values().forEach(voiceWithRuntime -> voiceWithRuntime.right().stop());
 		voiceWithRuntimeByVoiceId.clear();
 	}

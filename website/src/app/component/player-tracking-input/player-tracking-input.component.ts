@@ -1,59 +1,66 @@
-import {Component, OnInit} from "@angular/core";
+import {Component} from "@angular/core";
 import {ButtonModule} from "primeng/button";
-import {InputTextModule} from "primeng/inputtext";
 import {FloatLabelModule} from "primeng/floatlabel";
 import {CardModule} from "primeng/card";
-import {CheckboxModule} from "primeng/checkbox";
 import {FormControl, FormGroup, ReactiveFormsModule} from "@angular/forms";
-import {InputNumberModule} from "primeng/inputnumber";
-import {ServerService} from "../../service/server.service";
+import {HttpClient} from "@angular/common/http";
+import {url} from "../../utility/settings";
+import {ControlWithStatusComponent} from "../control-with-status/control-with-status.component";
+import {TextareaModule} from "primeng/textarea";
+import {TextInputBaseComponent} from "../text-input-base/text-input-base.component";
+import {PlayerTracking} from "../../data/playerTracking";
 
 @Component({
 	selector: "app-player-tracking-input",
 	imports: [
 		CardModule,
-		CheckboxModule,
 		FloatLabelModule,
-		InputTextModule,
-		InputNumberModule,
+		TextareaModule,
 		ButtonModule,
 		ReactiveFormsModule,
+		ControlWithStatusComponent,
 	],
 	templateUrl: "./player-tracking-input.component.html",
 	styleUrl: "./player-tracking-input.component.css",
 })
-export class PlayerTrackingInputComponent implements OnInit {
+export class PlayerTrackingInputComponent extends TextInputBaseComponent<PlayerTracking> {
 	protected readonly formGroup = new FormGroup({
-		trackingEnabled: new FormControl(true),
-		serverUrl: new FormControl(""),
-		trackingDimension: new FormControl(0),
-		trackingPlayer: new FormControl(""),
+		playerTracking: new FormControl(""),
 	});
+	private loading = false;
+	private status = "";
 
-	constructor(private readonly serverService: ServerService) {
-	}
-
-	ngOnInit() {
-		this.formGroup.get("trackingEnabled")?.valueChanges.subscribe(enabled => {
-			if (enabled) {
-				this.formGroup.get("serverUrl")?.enable();
-				this.formGroup.get("trackingPlayer")?.enable();
-			} else {
-				this.formGroup.get("serverUrl")?.disable();
-				this.formGroup.get("trackingPlayer")?.disable();
-			}
-		});
-	}
-
-	updateDisabled() {
-		const data = this.formGroup.getRawValue();
-		return !data.trackingEnabled || !data.serverUrl || data.trackingDimension === null || !data.trackingPlayer;
+	constructor(private readonly httpClient: HttpClient) {
+		super(data => new PlayerTracking(data));
 	}
 
 	update() {
-		const data = this.formGroup.getRawValue();
-		if (data.serverUrl && data.trackingDimension !== null && data.trackingPlayer) {
-			this.serverService.updateServer(data.serverUrl.endsWith("/") ? data.serverUrl.substring(0, data.serverUrl.length - 1) : data.serverUrl, data.trackingDimension, data.trackingPlayer);
+		const playerTracking = this.serialize();
+		if (playerTracking) {
+			this.loading = true;
+			this.httpClient.post<boolean>(`${url}/api/setPlayerTracking`, playerTracking).subscribe({
+				next: success => {
+					this.loading = false;
+					this.status = success ? "Player tracking updated" : "Player tracking failed";
+				},
+				error: () => {
+					this.loading = false;
+					this.status = "Player tracking failed";
+				},
+			});
 		}
+	}
+
+	isLoading() {
+		return this.loading;
+	}
+
+	getStatus() {
+		return this.status;
+	}
+
+	serialize() {
+		const playerTrackingList = this.serializeRaw(this.formGroup.get("playerTracking"));
+		return playerTrackingList.length === 1 ? playerTrackingList[0] : undefined;
 	}
 }

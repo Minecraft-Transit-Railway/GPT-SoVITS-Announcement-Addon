@@ -21,13 +21,15 @@ public final class ClipCollection {
 		this.clips = new ObjectImmutableList<>(clips);
 		clips.forEach(clip -> clip.addLineListener(event -> {
 			if (event.getType() == LineEvent.Type.STOP) {
-				clipIndex++;
-				playInternal();
+				synchronized (this) {
+					clipIndex++;
+					playInternal();
+				}
 			}
 		}));
 	}
 
-	public void play() {
+	public synchronized void play() {
 		log.info("Playing {} clip(s)", clips.size());
 		clipIndex = clips.size();
 		clips.forEach(DataLine::stop);
@@ -35,7 +37,7 @@ public final class ClipCollection {
 		playInternal();
 	}
 
-	private void playInternal() {
+	private synchronized void playInternal() {
 		if (clipIndex < clips.size()) {
 			final Clip clip = clips.get(clipIndex);
 			clip.setFramePosition(0);

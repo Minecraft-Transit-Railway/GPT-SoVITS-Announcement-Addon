@@ -1,30 +1,14 @@
 <p-card header="Minecraft Transit Railway Player Tracking">
 	<br/>
 	<form class="column gap" [formGroup]="formGroup">
-		<div class="row gap-small center">
-			<p-checkbox inputId="trackingEnabled" [binary]="true" formControlName="trackingEnabled"/>
-			<label for="trackingEnabled">Enabled</label>
-		</div>
+		<p-floatlabel variant="on">
+			<textarea pTextarea class="code-text-area" id="playerTracking" rows="8" style="resize: none" autocomplete="off" [spellcheck]="false" formControlName="playerTracking" [fluid]="true"></textarea>
+			<label for="playerTracking">Player Tracking Request</label>
+		</p-floatlabel>
 		<div class="row gap center">
-			<div class="spacing">
-				<p-floatlabel variant="on">
-					<input pInputText id="serverUrl" autocomplete="off" formControlName="serverUrl" [fluid]="true"/>
-					<label for="serverUrl">Transport System Map URL</label>
-				</p-floatlabel>
-			</div>
-			<div class="spacing">
-				<p-floatlabel variant="on">
-					<input pInputText id="trackingPlayer" autocomplete="off" formControlName="trackingPlayer" [fluid]="true"/>
-					<label for="trackingPlayer">Player to Track</label>
-				</p-floatlabel>
-			</div>
-			<div>
-				<p-floatlabel variant="on">
-					<p-input-number inputId="trackingDimension" formControlName="trackingDimension" [showButtons]="true" mode="decimal" [min]="0"/>
-					<label for="trackingDimension">Dimension</label>
-				</p-floatlabel>
-			</div>
+			<app-control-with-status [loading]="isLoading()" [status]="getStatus()">
+				<p-button label="Submit" type="submit" [disabled]="isLoading() || !serialize()" (onClick)="update()"/>
+			</app-control-with-status>
 		</div>
-		<p-button label="Update" type="submit" [disabled]="updateDisabled()" (onClick)="update()"/>
 	</form>
 </p-card>

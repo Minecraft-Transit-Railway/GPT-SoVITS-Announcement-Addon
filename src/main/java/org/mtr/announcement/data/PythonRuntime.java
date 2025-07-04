@@ -32,7 +32,7 @@ public final class PythonRuntime {
 	/**
 	 * Stop the Python runtime.
 	 */
-	public void stop() {
+	public synchronized void stop() {
 		if (isRunning()) {
 			Utilities.runWithRetry(() -> {
 				process.destroy();
