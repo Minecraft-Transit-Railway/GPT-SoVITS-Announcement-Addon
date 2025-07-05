@@ -1,6 +1,6 @@
 import {Component} from "@angular/core";
 import {CardModule} from "primeng/card";
-import {FormControl, FormGroup, FormsModule, ReactiveFormsModule} from "@angular/forms";
+import {FormsModule, ReactiveFormsModule} from "@angular/forms";
 import {ToggleSwitchModule} from "primeng/toggleswitch";
 import {SetupService} from "../../service/setup.service";
 import {SplitButtonModule} from "primeng/splitbutton";
@@ -26,9 +26,6 @@ import {ControlWithStatusComponent} from "../control-with-status/control-with-st
 })
 export class RuntimeControlComponent {
 	protected readonly reinstallOptions: MenuItem[];
-	protected readonly formGroup = new FormGroup({
-		runtimeToggle: new FormControl(false),
-	});
 	private loading = false;
 	private status = "";
 

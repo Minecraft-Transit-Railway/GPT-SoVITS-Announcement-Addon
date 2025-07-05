@@ -6,7 +6,9 @@
 				<p-splitbutton label="Reinstall" [disabled]="isLoading()" (onClick)="install()" [model]="reinstallOptions"/>
 			</app-control-with-status>
 		} @else {
-			<p-button label="Install" [disabled]="isLoading()" (onClick)="install()"/>
+			<app-control-with-status [loading]="isLoading()" [status]="getStatus()">
+				<p-button label="Install" [disabled]="isLoading()" (onClick)="install()"/>
+			</app-control-with-status>
 		}
 		<div class="spacing"></div>
 		<div>{{ getVersion() }}</div>

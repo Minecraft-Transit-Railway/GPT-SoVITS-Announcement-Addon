@@ -38,6 +38,7 @@ export class PlayerTrackingInputComponent extends TextInputBaseComponent<PlayerT
 		const playerTracking = this.serialize();
 		if (playerTracking) {
 			this.loading = true;
+			this.status = "Updating player tracking";
 			this.httpClient.post<boolean>(`${url}/api/setPlayerTracking`, playerTracking).subscribe({
 				next: success => {
 					this.loading = false;

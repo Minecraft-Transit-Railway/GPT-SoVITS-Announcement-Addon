@@ -7,26 +7,62 @@ export class SetupService {
 	private version = "";
 
 	constructor(private readonly httpClient: HttpClient) {
-		httpClient.get(`${url}/api/version`, {responseType: "text"}).subscribe(version => this.version = version);
+		this.updateVersion();
 	}
 
 	public prepare(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/prepare`).subscribe({next: success => callback(success), error: () => callback(false)});
+		this.httpClient.get<boolean>(`${url}/api/prepare`).subscribe({
+			next: success => {
+				this.updateVersion();
+				callback(success);
+			}, error: () => {
+				this.updateVersion();
+				callback(false);
+			},
+		});
 	}
 
 	public download(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/download?retries=100`).subscribe({next: success => callback(success), error: () => callback(false)});
+		this.httpClient.get<boolean>(`${url}/api/download?retries=100`).subscribe({
+			next: success => {
+				this.updateVersion();
+				callback(success);
+			}, error: () => {
+				this.updateVersion();
+				callback(false);
+			},
+		});
 	}
 
 	public unzip(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/unzip?retries=100`).subscribe({next: success => callback(success), error: () => callback(false)});
+		this.httpClient.get<boolean>(`${url}/api/unzip?retries=100`).subscribe({
+			next: success => {
+				this.updateVersion();
+				callback(success);
+			}, error: () => {
+				this.updateVersion();
+				callback(false);
+			},
+		});
 	}
 
 	public finish(callback: (success: boolean) => void) {
-		this.httpClient.get<boolean>(`${url}/api/finish`).subscribe({next: success => callback(success), error: () => callback(false)});
+		this.httpClient.get<boolean>(`${url}/api/finish`).subscribe({
+			next: success => {
+				this.updateVersion();
+				callback(success);
+			}, error: () => {
+				this.updateVersion();
+				callback(false);
+			},
+		});
 	}
 
 	public getVersion() {
 		return this.version ? this.version : undefined;
+	}
+
+	private updateVersion() {
+		this.httpClient.get(`${url}/api/version`, {responseType: "text"}).subscribe(version => this.version = version);
 	}
 }
