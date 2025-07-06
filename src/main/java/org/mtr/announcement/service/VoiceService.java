@@ -86,6 +86,11 @@ public final class VoiceService {
 		return voices;
 	}
 
+	public boolean isCjk(String voiceId) {
+		final ObjectObjectImmutablePair<Voice, PythonRuntime> voiceWithRuntime = voiceWithRuntimeByVoiceId.get(voiceId);
+		return voiceWithRuntime != null && !voiceWithRuntime.left().runtimeCode().equalsIgnoreCase("en");
+	}
+
 	private void clean() {
 		if (voiceWithRuntimeByVoiceId.entrySet().removeIf(entry -> !entry.getValue().right().isRunning())) {
 			log.info("Removed all stopped voice runtimes");

@@ -49,7 +49,7 @@ public final class SynthesisService {
 	}
 
 	public Mono<Boolean> synthesize(String key, List<SynthesisRequest> synthesisRequests, int retries) {
-		return Flux.fromIterable(synthesisRequests).flatMapSequential(synthesisRequest -> {
+		return Flux.fromIterable(synthesisRequests).filter(synthesisRequest -> !synthesisRequest.text().isBlank()).flatMapSequential(synthesisRequest -> {
 			final ObjectIntImmutablePair<Voice> voiceAndRuntimePort = voiceService.getVoiceAndRuntimePort(synthesisRequest.voiceId());
 			if (voiceAndRuntimePort == null) {
 				log.error("Voice with id [{}] not found", synthesisRequest.voiceId());

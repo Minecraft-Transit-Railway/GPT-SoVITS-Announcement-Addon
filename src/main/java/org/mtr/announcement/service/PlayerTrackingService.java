@@ -2,6 +2,7 @@ package org.mtr.announcement.service;
 
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -43,15 +45,17 @@ public final class PlayerTrackingService {
 	private final WebClient webClient;
 	private final ThreadPoolTaskScheduler threadPoolTaskScheduler;
 	private final SynthesisService synthesisService;
+	private final VoiceService voiceService;
 
 	private static final int STATIONS_AND_ROUTES_REFRESH_SECONDS = 30;
 	private static final int CLIENTS_REFRESH_SECONDS = 3;
 	private static final int RETRIES = 3;
 
-	public PlayerTrackingService(WebClient webClient, ThreadPoolTaskScheduler threadPoolTaskScheduler, SynthesisService synthesisService) {
+	public PlayerTrackingService(WebClient webClient, ThreadPoolTaskScheduler threadPoolTaskScheduler, SynthesisService synthesisService, VoiceService voiceService) {
 		this.webClient = webClient;
 		this.threadPoolTaskScheduler = threadPoolTaskScheduler;
 		this.synthesisService = synthesisService;
+		this.voiceService = voiceService;
 	}
 
 	public Mono<Boolean> update(PlayerTracking playerTracking) {
@@ -166,7 +170,19 @@ public final class PlayerTrackingService {
 				final String announcementKey = String.format("%s_%s_%s", route.id(), station1.id(), station2.id());
 
 				if (!announcementKey.equals(pendingAnnouncementKey.getAndSet(announcementKey))) {
-					final ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> textGroupStationName = collectLanguages(ObjectArrayList.of(station2.name()));
+					log.info("Tracking player and synthesizing with key [{}]", announcementKey);
+					final ObjectOpenHashSet<String> uniqueVoiceIds = playerTrackingCopy.announcements().stream().map(PlayerTracking.PlayerTrackingAnnouncement::voiceId).collect(Collectors.toCollection(ObjectOpenHashSet::new));
+					int maxCjkCount = 0;
+					int maxNonCjkCount = 0;
+					for (final String voiceId : uniqueVoiceIds) {
+						if (voiceService.isCjk(voiceId)) {
+							maxCjkCount++;
+						} else {
+							maxNonCjkCount++;
+						}
+					}
+
+					final ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> textGroupStationName = collectLanguages(ObjectArrayList.of(station2.name()), maxCjkCount, maxNonCjkCount);
 					final ObjectArrayList<String> interchangeRouteNames = new ObjectArrayList<>();
 					station2.routes().forEach(interchangeRoute -> {
 						final String interchangeRouteName = interchangeRoute.name().split("\\|\\|")[0];
@@ -174,38 +190,38 @@ public final class PlayerTrackingService {
 							interchangeRouteNames.add(interchangeRouteName);
 						}
 					});
-					final ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> textGroupInterchanges = collectLanguages(interchangeRouteNames);
-
+					final ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> textGroupInterchanges = collectLanguages(interchangeRouteNames, maxCjkCount, maxNonCjkCount);
 					final ObjectArrayList<SynthesisRequest> synthesisRequests = new ObjectArrayList<>();
 
 					int stationNameCjkIndex = 0;
 					int stationNameNonCjkIndex = 0;
-					int interchangeStationsCjkIndex = 0;
-					int interchangeStationsNonCjkIndex = 0;
+					int interchangeRoutesCjkIndex = 0;
+					int interchangeRoutesNonCjkIndex = 0;
 					for (final PlayerTracking.PlayerTrackingAnnouncement playerTrackingAnnouncement : playerTrackingCopy.announcements()) {
-						final boolean cjkOnly = playerTrackingAnnouncement.match().equalsIgnoreCase("cjk");
+						final boolean isCjk = voiceService.isCjk(playerTrackingAnnouncement.voiceId());
+						final ObjectArrayList<ObjectArrayList<String>> stationNameTextList = isCjk ? textGroupStationName.left() : textGroupStationName.right();
+						final ObjectArrayList<ObjectArrayList<String>> interchangeRoutesTextList = isCjk ? textGroupInterchanges.left() : textGroupInterchanges.right();
 
-						final ObjectArrayList<ObjectArrayList<String>> stationNameTextList = cjkOnly ? textGroupStationName.left() : textGroupStationName.right();
-						final ObjectArrayList<ObjectArrayList<String>> interchangeStationsTextList = cjkOnly ? textGroupInterchanges.left() : textGroupInterchanges.right();
-
-						final String stationName = joinStrings(stationNameTextList.get((cjkOnly ? stationNameCjkIndex : stationNameNonCjkIndex) % stationNameTextList.size()), playerTrackingAnnouncement.joinLast());
-						if (interchangeStationsTextList.isEmpty()) {
-							synthesisRequests.add(new SynthesisRequest(playerTrackingAnnouncement.voiceId(), String.format(playerTrackingAnnouncement.nextStationNoInterchange(), stationName)));
-						} else {
-							final String interchangeStations = joinStrings(interchangeStationsTextList.get((cjkOnly ? interchangeStationsCjkIndex : interchangeStationsNonCjkIndex) % interchangeStationsTextList.size()), playerTrackingAnnouncement.joinLast());
-							synthesisRequests.add(new SynthesisRequest(playerTrackingAnnouncement.voiceId(), String.format(playerTrackingAnnouncement.nextStationInterchange(), stationName, interchangeStations)));
-
-							if (cjkOnly) {
-								interchangeStationsCjkIndex++;
+						if (!stationNameTextList.isEmpty()) {
+							final String stationName = joinStrings(stationNameTextList.get((isCjk ? stationNameCjkIndex : stationNameNonCjkIndex) % stationNameTextList.size()), playerTrackingAnnouncement.joinLast());
+							if (interchangeRoutesTextList.isEmpty()) {
+								synthesisRequests.add(new SynthesisRequest(playerTrackingAnnouncement.voiceId(), String.format(playerTrackingAnnouncement.nextStationNoInterchange(), stationName)));
 							} else {
-								interchangeStationsNonCjkIndex++;
-							}
-						}
+								final String interchangeRoutes = joinStrings(interchangeRoutesTextList.get((isCjk ? interchangeRoutesCjkIndex : interchangeRoutesNonCjkIndex) % interchangeRoutesTextList.size()), playerTrackingAnnouncement.joinLast());
+								synthesisRequests.add(new SynthesisRequest(playerTrackingAnnouncement.voiceId(), String.format(playerTrackingAnnouncement.nextStationInterchange(), stationName, interchangeRoutes)));
 
-						if (cjkOnly) {
-							stationNameCjkIndex++;
-						} else {
-							stationNameNonCjkIndex++;
+								if (isCjk) {
+									interchangeRoutesCjkIndex++;
+								} else {
+									interchangeRoutesNonCjkIndex++;
+								}
+							}
+
+							if (isCjk) {
+								stationNameCjkIndex++;
+							} else {
+								stationNameNonCjkIndex++;
+							}
 						}
 					}
 
@@ -247,7 +263,7 @@ public final class PlayerTrackingService {
 		return uuidString.toLowerCase().replaceAll("[^a-f0-9]", "");
 	}
 
-	private static ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> collectLanguages(ObjectArrayList<String> textList) {
+	private static ObjectObjectImmutablePair<ObjectArrayList<ObjectArrayList<String>>, ObjectArrayList<ObjectArrayList<String>>> collectLanguages(ObjectArrayList<String> textList, int maxCjkCount, int maxNonCjkCount) {
 		final ObjectArrayList<ObjectArrayList<String>> cjkTextList = new ObjectArrayList<>();
 		final ObjectArrayList<ObjectArrayList<String>> nonCjkTextList = new ObjectArrayList<>();
 		textList.forEach(text -> {
@@ -261,9 +277,13 @@ public final class PlayerTrackingService {
 				}
 				tempTextList.get(isCjk ? cjkIndex : nonCjkIndex).add(textPart);
 				if (isCjk) {
-					cjkIndex++;
+					if (cjkIndex + 1 < maxCjkCount) {
+						cjkIndex++;
+					}
 				} else {
-					nonCjkIndex++;
+					if (nonCjkIndex + 1 < maxNonCjkCount) {
+						nonCjkIndex++;
+					}
 				}
 			}
 		});

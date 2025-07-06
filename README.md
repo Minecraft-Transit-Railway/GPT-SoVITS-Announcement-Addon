@@ -108,22 +108,19 @@ Players riding vehicles on any public Minecraft Transit Railway server can be tr
                "voiceId": "mtr-canto",
                "nextStationNoInterchange": "下一站,%s。",
                "nextStationInterchange": "下一站,%s。乘客可以轉乘%s。",
-               "joinLast": "或",
-               "match": "cjk"
+               "joinLast": "或"
            },
            {
                "voiceId": "mtr-mandarin",
                "nextStationNoInterchange": "下一站,%s。",
                "nextStationInterchange": "下一站,%s。乘客可以換乘%s。",
-               "joinLast": "或",
-               "match": "cjk"
+               "joinLast": "或"
            },
            {
                "voiceId": "mtr-english",
                "nextStationNoInterchange": "Next station, %s.",
                "nextStationInterchange": "Next station, %s. Interchange station for the %s.",
-               "joinLast": "and",
-               "match": "non-cjk"
+               "joinLast": "and"
            }
        ]
    }
@@ -136,7 +133,6 @@ Players riding vehicles on any public Minecraft Transit Railway server can be tr
         - `nextStationNoInterchange`: The format of the next station announcement that will be played when there are no interchanges. There must be one `%s`, which will be replaced by the station name.
         - `nextStationInterchange`: The format of the next station announcement that will be played when there are interchanges. There must be two `%s`; the first one will be replaced by the station name and the second one will be replaced by the list of interchange routes.
         - `joinLast`: The conjunction to join the last two interchange routes. For example, if the interchange routes are "Line 1", "Line 2", and "Line 3" and `joinLast` is "and", the resulting phrase will be "Line 1, Line 2, and Line 3".
-        - `match`: If set to `cjk`, the announcement will only be played if the station name or interchange routes contain Chinese, Japanese, or Korean characters. Otherwise, the announcement will only be played if the station name or interchange routes do not contain Chinese, Japanese, or Korean characters.
 2. Paste this JSON into the "Player Tracking Request" box and click on "Submit".
 
 It is recommended to run this addon on a separate computer as Minecraft itself, as the text-to-speech synthesis might fight for CPU and GPU resources with the Minecraft process.

@@ -24,7 +24,6 @@ class PlayerTrackingAnnouncement extends ValidatedDataBase {
 	public readonly nextStationNoInterchange: string;
 	public readonly nextStationInterchange: string;
 	public readonly joinLast: string;
-	public readonly match: string;
 
 	constructor(playerTrackingFormat: PlayerTrackingAnnouncement) {
 		super();
@@ -32,10 +31,9 @@ class PlayerTrackingAnnouncement extends ValidatedDataBase {
 		this.nextStationNoInterchange = playerTrackingFormat.nextStationNoInterchange;
 		this.nextStationInterchange = playerTrackingFormat.nextStationInterchange;
 		this.joinLast = playerTrackingFormat.joinLast;
-		this.match = playerTrackingFormat.match;
 	}
 
 	public isValid() {
-		return !!this.voiceId && !!this.nextStationNoInterchange && !!this.nextStationInterchange && !!this.joinLast && !!this.match;
+		return !!this.voiceId && !!this.nextStationNoInterchange && !!this.nextStationInterchange && !!this.joinLast;
 	}
 }
