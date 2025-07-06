@@ -43,7 +43,7 @@ export class VoiceTemplateInputComponent extends TextInputBaseComponent<Voice> {
 
 	add() {
 		this.addVoicesLoading = true;
-		this.status = "Adding voices";
+		this.status = "Adding voices...";
 		const successfulVoices: string[] = [];
 		const failedVoices: string[] = [];
 		const voices = this.serialize();
