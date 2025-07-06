@@ -108,21 +108,21 @@ Players riding vehicles on any public Minecraft Transit Railway server can be tr
                "voiceId": "mtr-canto",
                "nextStationNoInterchange": "下一站,%s。",
                "nextStationInterchange": "下一站,%s。乘客可以轉乘%s。",
-   			   "joinLast": "或",
+               "joinLast": "或",
                "match": "cjk"
            },
            {
                "voiceId": "mtr-mandarin",
                "nextStationNoInterchange": "下一站,%s。",
                "nextStationInterchange": "下一站,%s。乘客可以換乘%s。",
-   			   "joinLast": "或",
+               "joinLast": "或",
                "match": "cjk"
            },
            {
                "voiceId": "mtr-english",
                "nextStationNoInterchange": "Next station, %s.",
                "nextStationInterchange": "Next station, %s. Interchange station for the %s.",
-   			   "joinLast": "and",
+               "joinLast": "and",
                "match": "non-cjk"
            }
        ]
